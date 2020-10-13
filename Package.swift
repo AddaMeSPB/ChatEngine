@@ -8,9 +8,8 @@ let package = Package(
     ],
     dependencies: [
         // 💧 A server-side Swift web framework.
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.10.0"),
-        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
-        .package(url: "https://github.com/vapor/fluent-mongo-driver.git", from: "1.0.0-rc"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.32.0"),
+        .package(url: "https://github.com/AddaMeSPB/AddaAPIGatewayModels.git", from: "1.0.5"),
         .package(url: "https://github.com/vapor/jwt.git", from: "4.0.0-rc.1.4"),
         .package(url: "https://github.com/vapor/apns.git", from: "1.0.0-rc.1.1")
     ],
@@ -18,9 +17,8 @@ let package = Package(
         .target(
             name: "App",
             dependencies: [
-                .product(name: "Fluent", package: "fluent"),
-                .product(name: "FluentMongoDriver", package: "fluent-mongo-driver"),
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "AddaAPIGatewayModels", package: "AddaAPIGatewayModels"),
                 .product(name: "JWT", package: "jwt"),
                 .product(name: "APNS", package: "apns")
             ],
