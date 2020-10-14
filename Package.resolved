@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/AddaMeSPB/AddaAPIGatewayModels.git",
         "state": {
           "branch": null,
-          "revision": "9aa4d8547eef07bfb6c9bb3a7174cf928d4dc8df",
-          "version": "1.0.7"
+          "revision": "242565216662919eeec76e92f722ad8d5a704d77",
+          "version": "1.0.9"
         }
       },
       {
@@ -177,8 +177,8 @@
         "repositoryURL": "https://github.com/apple/swift-metrics.git",
         "state": {
           "branch": null,
-          "revision": "708b960b4605abb20bc55d65abf6bad607252200",
-          "version": "2.0.0"
+          "revision": "f5ed78cb26019b2b85b016f8aa5b1a3427c8251a",
+          "version": "2.1.0"
         }
       },
       {

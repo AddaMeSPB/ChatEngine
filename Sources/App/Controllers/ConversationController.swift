@@ -14,7 +14,7 @@ import AddaAPIGatewayModels
 extension ConversationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         routes.post(":conversations_id", use: addUser)
-        routes.get(use: readAll)
+        routes.get(use: readAll) // "users", ":users_id",
         routes.get(":conversations_id", "messages", use: readAllMessageByCoversationID)
         routes.put(use: update)
         routes.delete(":conversations_id", use: delete)
@@ -27,25 +27,26 @@ final class ConversationController {
         
         if req.loggedIn == false { throw Abort(.unauthorized) }
         
-//        guard let _id = req.parameters.get("\(User.schema)_id"), let id = ObjectId(_id) else {
+//        guard let _id = req.parameters.get("\(User.schema)_id"), let memberID = ObjectId(_id) else {
 //            return req.eventLoop
 //                .makeFailedFuture(Abort(.notFound, reason: "User id is not found!"))
 //        }
 
         return Conversation.query(on: req.db)
+//            .join(siblings: \.$members)
+//            .filter(User.self, \._$id == memberID)
             .with(\.$admins)
             .with(\.$members)
             .with(\.$chatMessages)
             .sort(\.$createdAt, .descending)
-            //.filter(\.$members ~~ id)
             .paginate(for: req)
             .map { (conversations: Page<Conversation>) -> Page<ConversationWithKids> in
                 conversations.map { conversation in
                     // you mean here ?
                     //let filter = conversation.members.filter { $0.id  == id }
-                    let adminsResponse = conversation.admins.map { $0.response }
-                    let membersResponse = conversation.members.map { $0.response }
-                    let messageLastResponse = conversation.chatMessages.map { $0.response }.last //have to sort to get correct result
+                    let adminsResponse = conversation.admins.map { $0 }
+                    let membersResponse = conversation.members.map { $0 } // .filter { $0.id == id }
+                    let messageLastResponse = conversation.chatMessages.sorted(by: { $0.createdAt!.timeIntervalSince1970 < $1.createdAt!.timeIntervalSince1970 }).map { $0.response }.last
                     return ConversationWithKids(
                         id: conversation.id,
                         title: conversation.title,
