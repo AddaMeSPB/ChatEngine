@@ -13,11 +13,11 @@ import AddaAPIGatewayModels
 
 extension ConversationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        routes.post(":conversations_id", use: addUser)
+        routes.post(":conversationsId", "users", ":usersId", use: addUser)
         routes.get(use: readAll) // "users", ":users_id",
-        routes.get(":conversations_id", "messages", use: readAllMessageByCoversationID)
+        routes.get(":conversationsId", "messages", use: readAllMessageByCoversationID)
         routes.put(use: update)
-        routes.delete(":conversations_id", use: delete)
+        routes.delete(":conversationsId", use: delete)
     }
 }
 
@@ -37,7 +37,9 @@ final class ConversationController {
 //            .filter(User.self, \._$id == memberID)
             .with(\.$admins)
             .with(\.$members)
-            .with(\.$chatMessages)
+            .with(\.$messages) {
+                $0.with(\.$sender).with(\.$recipient)
+            }
             .sort(\.$createdAt, .descending)
             .paginate(for: req)
             .map { (conversations: Page<Conversation>) -> Page<ConversationWithKids> in
@@ -46,13 +48,17 @@ final class ConversationController {
                     //let filter = conversation.members.filter { $0.id  == id }
                     let adminsResponse = conversation.admins.map { $0 }
                     let membersResponse = conversation.members.map { $0 } // .filter { $0.id == id }
-                    let messageLastResponse = conversation.chatMessages.sorted(by: { $0.createdAt!.timeIntervalSince1970 < $1.createdAt!.timeIntervalSince1970 }).map { $0.response }.last
+                    let messageLastResponse = conversation.messages.sorted(by: { $0.createdAt!.timeIntervalSince1970 < $1.createdAt!.timeIntervalSince1970 })
+                    .map { $0.response }.last
+                    
                     return ConversationWithKids(
                         id: conversation.id,
                         title: conversation.title,
                         admins: adminsResponse,
                         members: membersResponse,
-                        lastMessage: messageLastResponse
+                        lastMessage: messageLastResponse,
+                        createdAt: conversation.createdAt!,
+                        updatedAt: conversation.updatedAt!
                     )
 
                 }
@@ -65,8 +71,8 @@ final class ConversationController {
             throw Abort(.unauthorized)
         }
         
-        guard let _id = req.parameters.get("\(Conversation.schema)_id"), let id = ObjectId(_id) else {
-            return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)_id not found" ) )
+        guard let _id = req.parameters.get("\(Conversation.schema)Id"), let id = ObjectId(_id) else {
+            return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)Id not found" ) )
         }
 
         return Message.query(on: req.db)
@@ -82,9 +88,11 @@ final class ConversationController {
 
     func addUser(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         
-        guard let _idC = req.parameters.get("\(Conversation.schema)_id"),
+        guard let _idC = req.parameters
+                .get("\(Conversation.schema)Id"),
               let conversationID = ObjectId(_idC),
-              let _idU = req.parameters.get("\(User.schema)_id"),
+              let _idU = req.parameters
+                .get("\(User.schema)Id"),
               let userID = ObjectId(_idU)
         
         else {

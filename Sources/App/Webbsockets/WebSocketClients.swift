@@ -47,7 +47,7 @@ final class WebsocketClients {
         }
     }
     
-    func send(_ msg: ChatMessage, req: Request) {
+    func send(_ msg: Message.Item, req: Request) {
         let chatClients = self.activeClients.compactMap { $0 as? ChatClient }
         
         for client in chatClients where client.id != msg.sender!.id {

@@ -14,9 +14,9 @@ import AddaAPIGatewayModels
 
 extension MessageController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        routes.get(":messages_id", use: readAllMessagesByConversationID)
+        routes.get("by" ,"conversations" ,":conversationsId", use: readAllMessagesByConversationID)
         routes.put(use: update)
-        routes.delete(":messages_id", use: delete)
+        routes.delete(":messagesId", use: delete)
     }
 }
 
@@ -27,15 +27,18 @@ final class MessageController {
             throw Abort(.unauthorized)
         }
         
-        guard let _id = req.parameters.get("\(Conversation.schema)_id"), let id = ObjectId(_id) else {
-            return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)_id not found" ) )
+        guard let _id = req.parameters.get("\(Conversation.schema)Id"),
+              let id = ObjectId(_id) else {
+            return req.eventLoop.makeFailedFuture(
+                Abort(.notFound, reason: "\(Conversation.schema)Id not found")
+            )
         }
 
         return Message.query(on: req.db)
             .with(\.$sender)
             .with(\.$recipient)
             .filter(\.$conversation.$id == id)
-            .sort(\.$createdAt, .ascending)
+            .sort(\.$createdAt, .descending)
             .paginate(for: req)
             .map { (original: Page<Message>) -> Page<Message.Item> in
                 original.map { $0.response }

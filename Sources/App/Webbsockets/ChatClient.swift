@@ -14,6 +14,7 @@ final class ChatClient: WebSocketClient, Hashable {
 
     let logger: Logger = Logger(label: "ChatClient")
     
+    
     override init(id: ObjectId, socket: WebSocket) {
         super.init(id: id, socket: socket)
     }
@@ -27,7 +28,7 @@ final class ChatClient: WebSocketClient, Hashable {
         socket.send(text)
     }
     
-    func send(_ message: ChatMessage, _ req: Request) {
+    func send(_ message: Message.Item, _ req: Request) {
         guard req.loggedIn != false else {
             logger.error("\(#line) Unauthorized send message")
             return
@@ -58,11 +59,21 @@ final class ChatClient: WebSocketClient, Hashable {
                 .with(\.$sender)
                 .with(\.$recipient)
                 .filter(\.$id == messageCreate.id!)
-                .first().map { original in
-                    if let original = original, let msgJsonString = original.response.jsonString {
-                        logger.info("\(#line): \(original)")
-                        self.socket.send(msgJsonString)
-                    }
+                .first()
+                .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
+                .map { original in
+                    let message = ChatOutGoingEvent.message(original.response).jsonString
+                    let lastMessage = ChatOutGoingEvent.conversation(original.response).jsonString
+                    logger.info("\(#line): \(message)")
+                    
+                    
+                    
+                    self.socket.send(message ?? "")
+                    self.socket.send(lastMessage ?? "")
+                    
+//                    if let msgJsonString = original.response.jsonString {
+//                        logger.info("\(#line): \(original)")
+//                    }
                 }
             
         }

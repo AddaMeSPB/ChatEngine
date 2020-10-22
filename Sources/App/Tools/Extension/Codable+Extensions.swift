@@ -6,14 +6,17 @@
 //
 
 import Foundation
+import Vapor
+let loggerED = Logger(label: "Encodable or Decodable")
 
 extension Encodable {
     var jsonData: Data? {
         let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
         do {
             return try encoder.encode(self)
         } catch {
-            print(error.localizedDescription)
+            loggerED.error("\(error)")
             return nil
         }
     }
@@ -24,17 +27,21 @@ extension Encodable {
     }
 }
 
+
+
 extension Decodable {
+    
     static func from(json: String, using encoding: String.Encoding = .utf8) -> Self? {
         guard let data = json.data(using: encoding) else { return nil }
         return Self.from(data: data)
     }
     
     static func from(data: Data) -> Self? {
+        
         do {
             return try JSONDecoder().decode(Self.self, from: data)
         } catch {
-            print(error.localizedDescription)
+            loggerED.error("\(error)")
             return nil
         }
     }
@@ -46,13 +53,12 @@ extension Decodable {
     
     static func decode(data usingForWebRtcingData: Data) -> Self? {
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
         
         do {
             return try decoder.decode(Self.self, from: usingForWebRtcingData)
         } catch {
-            print(error.localizedDescription)
+            loggerED.error("\(error)")
             return nil
         }
     }

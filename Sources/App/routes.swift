@@ -10,8 +10,6 @@ func routes(_ app: Application) throws {
         return "Hello, world!"
     }
 
-    let chatHandle = ChatHandle(eventLoop: app.eventLoopGroup.next())
-
     try app.group("v1") { api in
         let events = api.grouped("messages")
         let eventsAuth = events.grouped(JWTMiddleware())
@@ -23,9 +21,8 @@ func routes(_ app: Application) throws {
         
         let chat = api.grouped("chat")
         let chatAuth = chat.grouped(JWTMiddleware())
-        chatAuth.webSocket() { req, ws in
-            chatHandle.connectionHandler(ws: ws, req: req)
-        }
+        let webSocketController = WebSocketController(eventLoop: app.eventLoopGroup.next(), db: app.db)
+        try chatAuth.register(collection: ChatController(wsController: webSocketController) )
         
     }
 }
