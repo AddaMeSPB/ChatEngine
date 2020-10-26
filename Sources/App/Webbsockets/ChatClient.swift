@@ -65,9 +65,7 @@ final class ChatClient: WebSocketClient, Hashable {
                     let message = ChatOutGoingEvent.message(original.response).jsonString
                     let lastMessage = ChatOutGoingEvent.conversation(original.response).jsonString
                     logger.info("\(#line): \(message)")
-                    
-                    
-                    
+
                     self.socket.send(message ?? "")
                     self.socket.send(lastMessage ?? "")
                     

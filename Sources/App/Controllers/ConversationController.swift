@@ -40,7 +40,7 @@ final class ConversationController {
             .with(\.$messages) {
                 $0.with(\.$sender).with(\.$recipient)
             }
-            .sort(\.$createdAt, .descending)
+            .sort(\.$createdAt, .ascending)
             .paginate(for: req)
             .map { (conversations: Page<Conversation>) -> Page<ConversationWithKids> in
                 conversations.map { conversation in
@@ -79,7 +79,7 @@ final class ConversationController {
             .with(\.$sender)
             .with(\.$recipient)
             .filter(\.$conversation.$id == id)
-            .sort(\.$createdAt, .ascending)
+            .sort(\.$createdAt, .descending)
             .paginate(for: req)
             .map { (originalMessage: Page<Message>) -> Page<Message.Item> in
                 originalMessage.map { $0.response }
