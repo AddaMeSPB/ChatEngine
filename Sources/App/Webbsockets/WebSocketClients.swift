@@ -48,11 +48,35 @@ final class WebsocketClients {
     }
     
     func send(_ msg: Message.Item, req: Request) {
-        let chatClients = self.activeClients.compactMap { $0 as? ChatClient }
         
-        for client in chatClients where client.id != msg.sender!.id {
-            client.send(msg, req)
+        let messageCreate = Message(msg, senderId: req.payload.userId, receipientId: nil)
+        
+        req.db.withConnection { _ in
+            messageCreate.save(on: req.db)
+        }.whenComplete { [self] res in
+            
+            let success: Bool
+            
+            switch res {
+            case .failure(let err):
+                self.logger.report(error: err)
+                success = false
+                
+            case .success:
+                self.logger.info("success true")
+                success = true
+            }
+            
+            messageCreate.isDelivered = success
+            messageCreate.update(on: req.db)
+            
+            let chatClients = self.activeClients.compactMap { $0 as? ChatClient }
+            
+            for client in chatClients where client.id != msg.sender!.id {
+                client.send(messageCreate, req)
+            }
         }
+        
     }
     
     deinit {

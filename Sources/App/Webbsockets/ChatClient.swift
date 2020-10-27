@@ -28,53 +28,26 @@ final class ChatClient: WebSocketClient, Hashable {
         socket.send(text)
     }
     
-    func send(_ message: Message.Item, _ req: Request) {
+    func send(_ message: Message, _ req: Request) {
         guard req.loggedIn != false else {
             logger.error("\(#line) Unauthorized send message")
             return
         }
 
-        let messageCreate = Message(message, senderId: req.payload.userId, receipientId: nil)
-        
-        req.db.withConnection { _ in
-            messageCreate.save(on: req.db)
-        }.whenComplete { [self] res in
-            
-            let success: Bool
-            
-            switch res {
-            case .failure(let err):
-                self.logger.report(error: err)
-                success = false
-                
-            case .success:
-                self.logger.info("success true")
-                success = true
-            }
-            
-            messageCreate.isDelivered = success
-            messageCreate.update(on: req.db)
-            
-            Message.query(on: req.db)
-                .with(\.$sender)
-                .with(\.$recipient)
-                .filter(\.$id == messageCreate.id!)
-                .first()
-                .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
-                .map { original in
-                    let message = ChatOutGoingEvent.message(original.response).jsonString
-                    let lastMessage = ChatOutGoingEvent.conversation(original.response).jsonString
-                    logger.info("\(#line): \(message)")
+        Message.query(on: req.db)
+            .with(\.$sender)
+            .with(\.$recipient)
+            .filter(\.$id == message.id!)
+            .first()
+            .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
+            .map { original in
+                let message = ChatOutGoingEvent.message(original.response).jsonString
+                let lastMessage = ChatOutGoingEvent.conversation(original.response).jsonString
 
-                    self.socket.send(message ?? "")
-                    self.socket.send(lastMessage ?? "")
-                    
-//                    if let msgJsonString = original.response.jsonString {
-//                        logger.info("\(#line): \(original)")
-//                    }
-                }
-            
-        }
+                self.socket.send(message ?? "")
+                self.socket.send(lastMessage ?? "")
+            }
+
     }
 
     static func == (lhs: ChatClient, rhs: ChatClient) -> Bool {
@@ -85,4 +58,3 @@ final class ChatClient: WebSocketClient, Hashable {
         hasher.combine(id)
     }
 }
-
