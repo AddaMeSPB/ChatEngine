@@ -11,9 +11,9 @@ func routes(_ app: Application) throws {
     }
 
     try app.group("v1") { api in
-        let events = api.grouped("messages")
-        let eventsAuth = events.grouped(JWTMiddleware())
-        try eventsAuth.register(collection: MessageController() )
+        let messages = api.grouped("messages")
+        let messagesAuth = messages.grouped(JWTMiddleware())
+        try messagesAuth.register(collection: MessageController() )
         
         let conversations = api.grouped("conversations")
         let conversationsAuth = conversations.grouped(JWTMiddleware())

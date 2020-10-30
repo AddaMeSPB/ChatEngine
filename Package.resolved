@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/vapor/apns.git",
         "state": {
           "branch": null,
-          "revision": "d8e81d9345f71ac7a6cf3637bbc10fdcc48d34f5",
-          "version": "1.0.0"
+          "revision": "e066fdad594107a3a7d56934a2536bc74dbbe191",
+          "version": "1.0.0-rc.1.1"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/kylebrowning/APNSwift.git",
         "state": {
           "branch": null,
-          "revision": "48e77d4c8d6ad671727b89bef5538ec79c3d7397",
-          "version": "2.1.0"
+          "revision": "9f4c2a2d7c7a1229f540f5a266bcb55a5f2d94e6",
+          "version": "2.0.0-rc1"
         }
       },
       {
@@ -42,8 +42,8 @@
         "repositoryURL": "https://github.com/vapor/async-kit.git",
         "state": {
           "branch": null,
-          "revision": "7457413e57dbfac762b32dd30c1caf2c55a02a3d",
-          "version": "1.2.0"
+          "revision": "8e2cad80dd9f62f0349a2a78ab8c81fb456f4d4a",
+          "version": "1.1.1"
         }
       },
       {
@@ -60,8 +60,8 @@
         "repositoryURL": "https://github.com/vapor/console-kit.git",
         "state": {
           "branch": null,
-          "revision": "7454e839bc5ae0e75c3946d2613e442fd342fe6b",
-          "version": "4.2.4"
+          "revision": "4ffc23dd1d6454228f78194ef68d8b20fca9390a",
+          "version": "4.1.1"
         }
       },
       {
@@ -96,8 +96,8 @@
         "repositoryURL": "https://github.com/vapor/jwt.git",
         "state": {
           "branch": null,
-          "revision": "46eddb526fa70fd9d765a3bdffac73b2be487cfc",
-          "version": "4.0.0"
+          "revision": "245dc755c2202a21c4108de0ecfd05aab174e8ab",
+          "version": "4.0.0-rc.2.1"
         }
       },
       {
@@ -105,8 +105,8 @@
         "repositoryURL": "https://github.com/vapor/jwt-kit.git",
         "state": {
           "branch": null,
-          "revision": "6055fe8439769aa3646a3c797d573ce7305849c8",
-          "version": "4.2.0"
+          "revision": "b5aa3d4eb91b54d0bd31a1a0c238199f2bf65969",
+          "version": "4.0.0-rc.1.4"
         }
       },
       {
@@ -132,8 +132,8 @@
         "repositoryURL": "https://github.com/vapor/routing-kit.git",
         "state": {
           "branch": null,
-          "revision": "4cf052b78aebaf1b23f2264ce04d57b4b6eb5254",
-          "version": "4.2.0"
+          "revision": "e7f2d5bd36dc65a9edb303541cb678515a7fece3",
+          "version": "4.1.0"
         }
       },
       {
@@ -159,8 +159,8 @@
         "repositoryURL": "https://github.com/apple/swift-crypto.git",
         "state": {
           "branch": null,
-          "revision": "9680b7251cd2be22caaed8f1468bd9e8915a62fb",
-          "version": "1.1.2"
+          "revision": "9b9d1868601a199334da5d14f4ab2d37d4f8d0c5",
+          "version": "1.0.2"
         }
       },
       {
@@ -177,8 +177,8 @@
         "repositoryURL": "https://github.com/apple/swift-metrics.git",
         "state": {
           "branch": null,
-          "revision": "f5ed78cb26019b2b85b016f8aa5b1a3427c8251a",
-          "version": "2.1.0"
+          "revision": "708b960b4605abb20bc55d65abf6bad607252200",
+          "version": "2.0.0"
         }
       },
       {
@@ -195,8 +195,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-extras.git",
         "state": {
           "branch": null,
-          "revision": "e5b5d191a80667a14827bfeb0ae4a511f7677942",
-          "version": "1.7.0"
+          "revision": "7cd24c0efcf9700033f671b6a8eaa64a77dd0b72",
+          "version": "1.5.1"
         }
       },
       {
@@ -231,8 +231,8 @@
         "repositoryURL": "https://github.com/vapor/vapor.git",
         "state": {
           "branch": null,
-          "revision": "fb59cb5714ae911bbda26559884419fb9d056032",
-          "version": "4.32.1"
+          "revision": "be07ff46f2730f730e03522696900966d75b4c2e",
+          "version": "4.34.0"
         }
       },
       {
@@ -240,8 +240,8 @@
         "repositoryURL": "https://github.com/vapor/websocket-kit.git",
         "state": {
           "branch": null,
-          "revision": "b0736014be634475dac4c23843811257d86dcdc1",
-          "version": "2.1.1"
+          "revision": "021edd1ca55451ad15b3e84da6b4064e4b877b34",
+          "version": "2.1.0"
         }
       }
     ]

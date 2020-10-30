@@ -38,18 +38,18 @@ public func configure(_ app: Application) throws {
     switch app.environment {
     case .production:
         guard let mongoURL = Environment.get("MONGO_DB_PRO") else {
-            fatalError("No MongoDB connection string is available in .env_production")
+            fatalError("No MongoDB connection string is available in MONGO_DB_PRO")
         }
         connectionString = mongoURL
     case .development:
         guard let mongoURL = Environment.get("MONGO_DB_DEV") else {
-            fatalError("No MongoDB connection string is available in .env_development")
+            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
         }
         connectionString = mongoURL
         print("mongoURL: \(connectionString)")
     default:
         guard let mongoURL = Environment.get("MONGO_DB_DEV") else {
-            fatalError("No MongoDB connection string is available in .env_development")
+            fatalError("No MongoDB connection string is available in MONGO_DB_DEV default \(#line)")
         }
         connectionString = mongoURL
         print("mongoURL: \(connectionString)")
@@ -73,12 +73,13 @@ public func configure(_ app: Application) throws {
     decoder.dateDecodingStrategy = .iso8601
     ContentConfiguration.global.use(decoder: decoder, for: .json)
 
-    // Configure custom hostname.
-    #if os(Linux)
-    #else
+    if app.environment == .production {
         app.http.server.configuration.hostname = "0.0.0.0"
         app.http.server.configuration.port = 6060
-    #endif
+    } else if app.environment == .development {
+        app.http.server.configuration.hostname = "0.0.0.0"
+        app.http.server.configuration.port = 6060
+    }
     
     try routes(app)
 

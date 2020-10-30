@@ -13,7 +13,7 @@ import AddaAPIGatewayModels
 
 extension ConversationController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
-        routes.post(":conversationsId", "users", ":usersId", use: addUser)
+        routes.post(":conversationsId", "users", ":usersId", use: addUserToConversation)
         routes.get(use: readAll) // "users", ":users_id",
         routes.get(":conversationsId", "messages", use: readAllMessageByCoversationID)
         routes.put(use: update)
@@ -86,7 +86,7 @@ final class ConversationController {
             }
     }
 
-    func addUser(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
+    func addUserToConversation(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
         
         guard let _idC = req.parameters
                 .get("\(Conversation.schema)Id"),
