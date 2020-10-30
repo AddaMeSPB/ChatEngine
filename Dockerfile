@@ -59,9 +59,9 @@ COPY --from=build --chown=vapor:vapor /build/.build/release /app
 
 # Copy dotenv files
 COPY --from=build --chown=vapor:vapor /build/.env /app/.env
-COPY --from=build --chown=vapor:vapor /build/.env.production /app/.env.production
-COPY --from=build --chown=vapor:vapor /build/.env.development /app/.env.development
-COPY --from=build --chown=vapor:vapor /build/.env.test /app/.env.test
+#COPY --from=build --chown=vapor:vapor /build/.env.production /app/.env.production
+#COPY --from=build --chown=vapor:vapor /build/.env.development /app/.env.development
+#COPY --from=build --chown=vapor:vapor /build/.env.test /app/.env.test
 # Uncomment the next line if you need to load resources from the `Public` directory
 #COPY --from=build --chown=vapor:vapor /build/Public /app/Public
 # Uncomment the next line if you need to load resources from the `Resources` directory
