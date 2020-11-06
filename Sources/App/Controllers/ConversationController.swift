@@ -28,6 +28,7 @@ final class ConversationController {
     if req.loggedIn == false { throw Abort(.unauthorized) }
 
     return UserConversation.query(on: req.db)
+      .filter(\.$member.$id == req.payload.userId)
       .with(\.$conversation) {
         $0.with(\.$admins)
         $0.with(\.$members)
@@ -35,13 +36,9 @@ final class ConversationController {
           $0.with(\.$sender).with(\.$recipient)
         }
       }
-      .group(.or) {
-        $0.filter(\.$member.$id == req.payload.userId)
-          .filter(\.$admin.$id == req.payload.userId )
-      }
       .paginate(for: req)
-      .map { (conversations: Page<UserConversation>) -> Page<ConversationWithKids> in
-        conversations.map { userConversation in
+      .map { (userConversations: Page<UserConversation>) -> Page<ConversationWithKids> in
+        userConversations.map { userConversation in
           let conversation = userConversation.conversation
           let adminsResponse = conversation.admins.map { $0 }
           let membersResponse = conversation.members.map { $0 } // .filter { $0.id == id }
@@ -106,7 +103,7 @@ final class ConversationController {
       .unwrap(or: Abort(.notFound, reason: "Cant find user") )
     
     return conversationQuery.and(userQuery).flatMap { conversation, user in
-      conversation.$members.attach(user, on: req.db).transform(to: .created)
+      conversation.$members.attach(user, method: .ifNotExists, on: req.db).transform(to: .created)
     }
   }
   
