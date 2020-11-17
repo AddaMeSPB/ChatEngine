@@ -38,7 +38,7 @@ class ChatHandle {
             }
             
             let string = String(data: data, encoding: .utf8)
-            print(#line, string)
+          print(#line, string as Any)
             
             let chatOutGoingEvent = ChatOutGoingEvent.decode(data: data)
             

@@ -13,6 +13,7 @@ import AddaAPIGatewayModels
 
 extension ConversationController: RouteCollection {
   func boot(routes: RoutesBuilder) throws {
+    routes.post("", use: create)
     routes.post(":conversationsId", "users", ":usersId", use: addUserToConversation)
     routes.get(use: readAll) // "users", ":users_id",
     routes.get(":conversationsId", "messages", use: readAllMessageByCoversationID)
@@ -23,10 +24,44 @@ extension ConversationController: RouteCollection {
 
 final class ConversationController {
   
+  func create(_ req: Request) throws -> EventLoopFuture<Conversation>  {
+    if req.loggedIn == false { throw Abort(.unauthorized) }
+    
+    let content = try req.content.decode(CreateConversation.self)
+    let currentUserID = req.payload.userId
+    
+    return User.query(on: req.db)
+      .filter(\.$phoneNumber == content.opponentPhoneNumber)
+      .first()
+      .unwrap(or: Abort(.notFound, reason: "Cant find member user") )
+      .flatMap { (user: User) -> EventLoopFuture<Conversation>  in
+
+        return UserConversation.query(on: req.db)
+          .filter(\.$member.$id ~~ [currentUserID, user.id!])
+          .join(Conversation.self, on: \UserConversation.$conversation.$id == \Conversation.$id)
+          .filter(Conversation.self, \Conversation.$type == .oneToOne)
+          .with(\.$conversation)
+          .all()
+          .flatMap { (uc: [UserConversation]) -> EventLoopFuture<Conversation> in
+            if  uc.count > 0 {
+              return  req.eventLoop.makeSucceededFuture(uc.last!.conversation)
+            } else {
+              let conversation = Conversation(title: content.title, type: content.type)
+              return conversation.save(on: req.db).map { data in
+                conversation.addUserAsAMember(userId: currentUserID, req: req)
+                conversation.addMemberToOneToOneConversationBy(phoneNumber: content.opponentPhoneNumber, req: req)
+                
+                return conversation
+              }
+            }
+          }
+      }
+  }
+  
   func readAll(_ req: Request) throws -> EventLoopFuture<Page<ConversationWithKids>> {
     
     if req.loggedIn == false { throw Abort(.unauthorized) }
-
+    
     return UserConversation.query(on: req.db)
       .filter(\.$member.$id == req.payload.userId)
       .with(\.$conversation) {
@@ -48,6 +83,7 @@ final class ConversationController {
           return ConversationWithKids(
             id: conversation.id,
             title: conversation.title,
+            type: conversation.type,
             admins: adminsResponse,
             members: membersResponse,
             lastMessage: messageLastResponse,
@@ -105,6 +141,7 @@ final class ConversationController {
     return conversationQuery.and(userQuery).flatMap { conversation, user in
       conversation.$members.attach(user, method: .ifNotExists, on: req.db).transform(to: .created)
     }
+    
   }
   
   private func update(_ req: Request) throws -> EventLoopFuture<Conversation> {
