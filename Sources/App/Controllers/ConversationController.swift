@@ -16,6 +16,7 @@ extension ConversationController: RouteCollection {
     routes.post("", use: create)
     routes.post(":conversationsId", "users", ":usersId", use: addUserToConversation)
     routes.get(use: readAll) // "users", ":users_id",
+    routes.get(":conversationsId", use: find)
     routes.get(":conversationsId", "messages", use: readAllMessageByCoversationID)
     routes.put(use: update)
     routes.delete(":conversationsId", use: delete)
@@ -93,6 +94,19 @@ final class ConversationController {
           
         }
       }
+  }
+  
+  private func find(_ req: Request) throws -> EventLoopFuture<Conversation> {
+    if req.loggedIn == false { throw Abort(.unauthorized) }
+    guard let _id = req.parameters.get("\(Conversation.schema)Id"), let id = ObjectId(_id) else {
+      return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)Id not found" ) )
+    }
+    
+    return Conversation.query(on: req.db)
+      .with(\.$admins).with(\.$members)
+      .filter(\.$id == id)
+      .first()
+      .unwrap(or: Abort(.notFound, reason: "Conversation not found by id \(Conversation.schema)Id") )
   }
   
   private func readAllMessageByCoversationID(_ req: Request) throws -> EventLoopFuture<Page<Message.Item>> {
