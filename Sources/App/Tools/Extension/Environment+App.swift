@@ -20,5 +20,5 @@ extension Environment {
     static let apnsKeyId = Self.get("APNS_KEY_ID")!
     static let apnsTeamId = Self.get("APNS_TEAM_ID")!
     static let apnsTopic = Self.get("APNS_TOPIC")!
-    static let apnsKey = Self.get("APNS_KEY")!.base64Decoded()!
+    static let apnsKey = Self.get("APNS_PRIVATE_KEY")!.base64Decoded()!
 }

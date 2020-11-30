@@ -13,26 +13,30 @@ public func configure(_ app: Application) throws {
 //        fatalError("No value was found at the given public key environment 'APNSAuthKey'")
 //    }
 //    let keyIdentifier = JWKIdentifier.init(string: KEY_IDENTIFIER)
-//    #if os(Linux)
-//        app.apns.configuration = try .init( authenticationMethod: .jwt(
-//            key: .private(pem: Data(Environment.apnsKey.utf8)),
-//            keyIdentifier: .init(string: Environment.apnsKeyId),
-//            teamIdentifier: Environment.apnsTeamId
-//            ),
-//            topic: Environment.apnsTopic,
-//            environment: .production
-//        )
-//    #else
-//        app.apns.configuration = try .init( authenticationMethod: .jwt(
-//            key: .private(pem: Data(Environment.apnsKey.utf8)),
-//            keyIdentifier: .init(string: Environment.apnsKeyId),
-//            teamIdentifier: Environment.apnsTeamId
-//            ),
-//            topic: Environment.apnsTopic,
-//            environment: .sandbox
-//        )
-//
-//    #endif
+  
+  switch app.environment {
+  case .development:
+    app.apns.configuration = try .init( authenticationMethod: .jwt(
+        key: .private(pem: Data(Environment.apnsKey.utf8)),
+        keyIdentifier: .init(string: Environment.apnsKeyId),
+        teamIdentifier: Environment.apnsTeamId
+        ),
+        topic: Environment.apnsTopic,
+        environment: .sandbox
+    )
+  case .production:
+    app.apns.configuration = try .init( authenticationMethod: .jwt(
+        key: .private(pem: Data(Environment.apnsKey.utf8)),
+        keyIdentifier: .init(string: Environment.apnsKeyId),
+        teamIdentifier: Environment.apnsTeamId
+        ),
+        topic: Environment.apnsTopic,
+        environment: .production
+    )
+  default:
+    break
+  }
+
     
     var connectionString: String
     switch app.environment {

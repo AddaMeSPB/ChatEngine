@@ -75,6 +75,23 @@ final class WebsocketClients {
             for client in chatClients where client.id != msg.sender!.id {
                 client.send(messageCreate, req)
             }
+          
+          messageCreate.$conversation.query(on: req.db)
+            .with(\.$members) {
+              $0.with(\.$devices)
+            }
+            .first()
+            .unwrap(or: Abort(.noContent) )
+            .map { conversation in
+            conversation.members.forEach({ user in
+              for device in user.devices { //where device.user.id != messageCreate.sender!.id
+                req.apns.send(
+                  .init(title: conversation.title, subtitle: messageCreate.messageBody),
+                  to: device.token
+                )
+              }
+            })
+          }
         }
         
     }
@@ -82,6 +99,7 @@ final class WebsocketClients {
     deinit {
         let futures = self.allCliendts.values.map { $0.socket.close() }
         try! self.eventLoop.flatten(futures).wait()
+      logger.debug("deinit call from WebsocketClients")
     }
     
 }

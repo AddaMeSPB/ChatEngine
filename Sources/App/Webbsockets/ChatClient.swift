@@ -9,6 +9,7 @@ import Vapor
 import MongoKitten
 import Fluent
 import AddaAPIGatewayModels
+import APNS
 
 final class ChatClient: WebSocketClient, Hashable {
 
@@ -46,8 +47,9 @@ final class ChatClient: WebSocketClient, Hashable {
 
                 self.socket.send(message ?? "")
                 self.socket.send(lastMessage ?? "")
+              
             }
-
+      
     }
 
     static func == (lhs: ChatClient, rhs: ChatClient) -> Bool {

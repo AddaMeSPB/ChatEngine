@@ -23,6 +23,9 @@ func routes(_ app: Application) throws {
         let chatAuth = chat.grouped(JWTMiddleware())
         let webSocketController = WebSocketController(eventLoop: app.eventLoopGroup.next(), db: app.db)
         try chatAuth.register(collection: ChatController(wsController: webSocketController) )
-        
+       
+        let device = api.grouped("devices")
+        let devicesAuth = device.grouped(JWTMiddleware())
+        try devicesAuth.register(collection: DeviceController() )
     }
 }
