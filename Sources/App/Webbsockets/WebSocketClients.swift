@@ -50,13 +50,15 @@ final class WebsocketClients {
   fileprivate func sendNotificationToConversationMembers(_ msg: Message, _ req: Request) -> EventLoopFuture<()> {
     return msg.$conversation.query(on: req.db)
       .with(\.$members) {
-        $0.with(\.$devices)
+        $0.with(\.$devices) {
+          $0.with(\.$user)
+        }
       }
       .first()
       .unwrap(or: Abort(.noContent) )
       .map { conversation in
       conversation.members.forEach({ user in
-        for device in user.devices where device.user.id != msg.sender!.id {
+        for device in user.devices where device.user.id != req.payload.userId {
           req.apns.send(
             .init(title: conversation.title, subtitle: msg.messageBody),
             to: device.token
@@ -95,22 +97,7 @@ final class WebsocketClients {
                 client.send(messageCreate, req)
             }
           
-          messageCreate.$conversation.query(on: req.db)
-            .with(\.$members) {
-              $0.with(\.$devices)
-            }
-            .first()
-            .unwrap(or: Abort(.noContent) )
-            .map { conversation in
-            conversation.members.forEach({ user in
-              for device in user.devices { //where device.user.id != messageCreate.sender!.id
-                req.apns.send(
-                  .init(title: conversation.title, subtitle: messageCreate.messageBody),
-                  to: device.token
-                )
-              }
-            })
-          }
+           sendNotificationToConversationMembers(messageCreate, req)
         }
         
     }
