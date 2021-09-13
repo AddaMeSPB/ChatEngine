@@ -25,12 +25,12 @@ extension ConversationController: RouteCollection {
 
 final class ConversationController {
   
-  func create(_ req: Request) throws -> EventLoopFuture<Conversation>  {
+  func create(_ req: Request) throws -> EventLoopFuture<Conversation>  { // rename func createOrFind
     if req.loggedIn == false { throw Abort(.unauthorized) }
     
     let content = try req.content.decode(CreateConversation.self)
     let currentUserID = req.payload.userId
-    
+
     return User.query(on: req.db)
       .filter(\.$phoneNumber == content.opponentPhoneNumber)
       .first()
@@ -45,6 +45,7 @@ final class ConversationController {
           .all()
           .flatMap { (uc: [UserConversation]) -> EventLoopFuture<Conversation> in
             if  uc.count > 0 {
+              print(#line, content)
               return  req.eventLoop.makeSucceededFuture(uc.last!.conversation)
             } else {
               let conversation = Conversation(title: content.title, type: content.type)
@@ -107,6 +108,7 @@ final class ConversationController {
       .filter(\.$id == id)
       .first()
       .unwrap(or: Abort(.notFound, reason: "Conversation not found by id \(Conversation.schema)Id") )
+    
   }
   
   private func readAllMessageByCoversationID(_ req: Request) throws -> EventLoopFuture<Page<Message.Item>> {
@@ -130,7 +132,7 @@ final class ConversationController {
       }
   }
   
-  func addUserToConversation(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
+  func addUserToConversation(_ req: Request) throws -> EventLoopFuture<Conversation> {
     
     guard let _idC = req.parameters
             .get("\(Conversation.schema)Id"),
@@ -152,8 +154,13 @@ final class ConversationController {
     let userQuery = User.find(userID, on: req.db)
       .unwrap(or: Abort(.notFound, reason: "Cant find user") )
     
-    return conversationQuery.and(userQuery).flatMap { conversation, user in
-      conversation.$members.attach(user, method: .ifNotExists, on: req.db).transform(to: .created)
+    return conversationQuery.and(userQuery)
+      .flatMap { conversation, user in
+        conversation.$members.attach(
+          user, method: .ifNotExists, on: req.db
+        ).map {
+          conversation
+        }
     }
     
   }
@@ -193,7 +200,10 @@ final class ConversationController {
       throw Abort(.unauthorized)
     }
     
-    guard let _id = req.parameters.get("\(Conversation.schema)_id"), let id = ObjectId(_id) else {
+    guard
+      let _id = req.parameters.get("\(Conversation.schema)_id"),
+      let id = ObjectId(_id)
+    else {
       return req.eventLoop.makeFailedFuture(Abort(.notFound))
     }
     
@@ -203,7 +213,7 @@ final class ConversationController {
         if conversation.admins.map({ $0.id }).contains(req.payload.userId) != false {
           throw Abort(.notFound,reason: "Dont have permission to change this Conversation")
         } else {
-          conversation.delete(on: req.db)
+           _ = conversation.delete(on: req.db)
         }
       }.map { .ok }
     

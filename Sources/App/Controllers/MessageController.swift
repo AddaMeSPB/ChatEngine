@@ -41,7 +41,10 @@ final class MessageController {
             .sort(\.$createdAt, .descending)
             .paginate(for: req)
             .map { (original: Page<Message>) -> Page<Message.Item> in
-                original.map { $0.response }
+                original.map {
+                  $0.response
+                  
+                }
             }
         
         //        return Event.query(on: req.db)

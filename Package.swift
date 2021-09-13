@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.4
 import PackageDescription
 
 let package = Package(
@@ -8,11 +8,11 @@ let package = Package(
     ],
     dependencies: [
         // 💧 A server-side Swift web framework.
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.32.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.48.5"),
 //        .package(path: "../AddaAPIGatewayModels"),
-        .package(url: "https://github.com/AddaMeSPB/AddaAPIGatewayModels.git", from: "1.0.36"),
-        .package(url: "https://github.com/vapor/jwt.git", from: "4.0.0-rc.1.4"),
-        .package(url: "https://github.com/vapor/apns.git", from: "1.0.0-rc.1.1")
+        .package(url: "https://github.com/AddaMeSPB/AddaAPIGatewayModels.git", from: "1.0.38"),
+        .package(url: "https://github.com/vapor/jwt.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/apns.git", from: "1.0.1")
     ],
     targets: [
         .target(
