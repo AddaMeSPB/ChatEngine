@@ -10,3 +10,6 @@ db.sqlite
 
 .env.development
 docker-compose.production.yml
+
+apnsBase64.txt
+apnsBase642.txt
