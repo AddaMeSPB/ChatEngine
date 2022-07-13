@@ -36,7 +36,6 @@ public func configure(_ app: Application) throws {
   default:
     break
   }
-
     
     var connectionString: String
     switch app.environment {
@@ -47,6 +46,18 @@ public func configure(_ app: Application) throws {
         connectionString = mongoURL
     case .development:
         guard let mongoURL = Environment.get("MONGO_DB_DEV") else {
+            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
+        }
+        connectionString = mongoURL
+        print("mongoURL: \(connectionString)")
+    case .staging:
+        guard let mongoURL = Environment.get("MONGO_DB_STAGING") else {
+            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
+        }
+        connectionString = mongoURL
+        print("mongoURL: \(connectionString)")
+    case .testing:
+        guard let mongoURL = Environment.get("MONGO_DB_TESTING") else {
             fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
         }
         connectionString = mongoURL
@@ -84,7 +95,23 @@ public func configure(_ app: Application) throws {
         app.http.server.configuration.hostname = "0.0.0.0"
         app.http.server.configuration.port = 6060
     }
-    
+
+    // Configure custom hostname.
+    switch app.environment {
+    case .production:
+        app.http.server.configuration.hostname = "0.0.0.0"
+        app.http.server.configuration.port = 6060
+    case .staging:
+      app.http.server.configuration.port = 6061
+      app.http.server.configuration.hostname = "0.0.0.0"
+    case .development:
+        app.http.server.configuration.port = 6060
+        app.http.server.configuration.hostname = "0.0.0.0"
+    default:
+        app.http.server.configuration.port = 6060
+        app.http.server.configuration.hostname = "0.0.0.0"
+    }
+
     try routes(app)
 
 }

@@ -8,7 +8,7 @@
 import Vapor
 import MongoKitten
 import Fluent
-import AddaAPIGatewayModels
+import AddaSharedModels
 import APNS
 
 final class ChatClient: WebSocketClient, Hashable {

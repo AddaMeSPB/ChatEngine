@@ -21,4 +21,7 @@ extension Environment {
     static let apnsTeamId = Self.get("APNS_TEAM_ID")!
     static let apnsTopic = Self.get("APNS_TOPIC")!
     static let apnsKey = Self.get("APNS_PRIVATE_KEY")!.base64Decoded()!
+
+    // 
+    public static var staging: Environment { .init(name: "staging") }
 }

@@ -8,7 +8,7 @@
 import Vapor
 import Foundation
 import MongoKitten
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 class ChatHandle {
     var chatClients: WebsocketClients

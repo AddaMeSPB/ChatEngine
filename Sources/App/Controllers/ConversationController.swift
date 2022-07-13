@@ -9,11 +9,11 @@ import Vapor
 import Fluent
 import MongoKitten
 import JWT
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 extension ConversationController: RouteCollection {
   func boot(routes: RoutesBuilder) throws {
-    routes.post("", use: create)
+    routes.post("", use: createOrFind)
     routes.post(":conversationsId", "users", ":usersId", use: addUserToConversation)
     routes.get(use: readAll) // "users", ":users_id",
     routes.get(":conversationsId", use: find)
@@ -24,104 +24,117 @@ extension ConversationController: RouteCollection {
 }
 
 final class ConversationController {
-  
-  func create(_ req: Request) throws -> EventLoopFuture<Conversation>  { // rename func createOrFind
-    if req.loggedIn == false { throw Abort(.unauthorized) }
     
-    let content = try req.content.decode(CreateConversation.self)
-    let currentUserID = req.payload.userId
-
-    return User.query(on: req.db)
-      .filter(\.$phoneNumber == content.opponentPhoneNumber)
-      .first()
-      .unwrap(or: Abort(.notFound, reason: "Cant find member user") )
-      .flatMap { (user: User) -> EventLoopFuture<Conversation>  in
-
-        return UserConversation.query(on: req.db)
-          .filter(\.$member.$id ~~ [currentUserID, user.id!])
-          .join(Conversation.self, on: \UserConversation.$conversation.$id == \Conversation.$id)
-          .filter(Conversation.self, \Conversation.$type == .oneToOne)
-          .with(\.$conversation)
-          .all()
-          .flatMap { (uc: [UserConversation]) -> EventLoopFuture<Conversation> in
-            if  uc.count > 0 {
-              print(#line, content)
-              return  req.eventLoop.makeSucceededFuture(uc.last!.conversation)
-            } else {
-              let conversation = Conversation(title: content.title, type: content.type)
-              return conversation.save(on: req.db).map { data in
-                conversation.addUserAsAMember(userId: currentUserID, req: req)
-                conversation.addMemberToOneToOneConversationBy(phoneNumber: content.opponentPhoneNumber, req: req)
-                
-                return conversation
-              }
+    func createOrFind(_ req: Request) async throws -> Conversation {
+        if req.loggedIn == false { throw Abort(.unauthorized) }
+        
+        let content = try req.content.decode(CreateConversation.self)
+        let currentUserID = req.payload.userId
+        let conversation = Conversation(title: content.title, type: content.type)
+        
+        guard
+            let member = try await User.query(on: req.db)
+                .filter(\.$phoneNumber == content.opponentPhoneNumber)
+                .first().get(),
+            let memberID = member.id else {
+                throw Abort(.notFound, reason: "Cant find member user")
             }
+        
+        let userConversation = try await UserConversation.query(on: req.db)
+                .filter(\.$member.$id ~~ [currentUserID, memberID])
+                .join(Conversation.self, on: \UserConversation.$conversation.$id == \Conversation.$id)
+                .filter(Conversation.self, \Conversation.$type == .oneToOne)
+                .with(\.$conversation)
+                .all().get()
+        
+        if userConversation.count > 0 {
+           return userConversation.last!.conversation
+        }
+        
+        try await conversation.save(on: req.db).get()
+        try await conversation.$members.attach(member, method: .ifNotExists, on: req.db).get()
+        
+        guard let currentUser = try await User.query(on: req.db)
+                .filter(\.$id == currentUserID)
+                .first().get()
+            else {
+                throw Abort(.notFound, reason: "Cant find user admin from id: \(currentUserID)")
+            }
+        
+        try await conversation.$members.attach(currentUser, method: .ifNotExists, on: req.db).get()
+        
+        return conversation
+
+    }
+  
+    func readAll(_ req: Request) async throws -> Page<ConversationWithKids> {
+      
+      if req.loggedIn == false { throw Abort(.unauthorized) }
+      let currentUserID = req.payload.userId
+      
+      let page =  try await UserConversation.query(on: req.db)
+        .filter(\.$member.$id == currentUserID)
+        .with(\.$conversation) {
+          $0.with(\.$admins)
+          $0.with(\.$members)
+          $0.with(\.$messages) {
+            $0.with(\.$sender)
+              .with(\.$recipient)
           }
-      }
-  }
-  
-  func readAll(_ req: Request) throws -> EventLoopFuture<Page<ConversationWithKids>> {
-    
-    if req.loggedIn == false { throw Abort(.unauthorized) }
-    
-    return UserConversation.query(on: req.db)
-      .filter(\.$member.$id == req.payload.userId)
-      .with(\.$conversation) {
-        $0.with(\.$admins)
-        $0.with(\.$members)
-        $0.with(\.$messages) {
-          $0.with(\.$sender).with(\.$recipient)
         }
-      }
-      .paginate(for: req)
-      .map { (userConversations: Page<UserConversation>) -> Page<ConversationWithKids> in
-        userConversations.map { userConversation in
-          let conversation = userConversation.conversation
-          let adminsResponse = conversation.admins.map { $0 }
-          let membersResponse = conversation.members.map { $0 } // .filter { $0.id == id }
-          let messageLastResponse = conversation.messages.sorted(by: { $0.createdAt!.timeIntervalSince1970 < $1.createdAt!.timeIntervalSince1970 })
-            .map { $0.response }.last
-          
-          return ConversationWithKids(
-            id: conversation.id,
-            title: conversation.title,
-            type: conversation.type,
-            admins: adminsResponse,
-            members: membersResponse,
-            lastMessage: messageLastResponse,
-            createdAt: conversation.createdAt!,
-            updatedAt: conversation.updatedAt!
-          )
-          
+        .paginate(for: req)
+        .get()
+        
+        return page.map { userConversation in
+            let conversation = userConversation.conversation
+            let adminsResponse = conversation.admins.map { $0 }
+            let membersResponse = conversation.members.map { $0 } // .filter { $0.id == id }
+            let messageLastResponse = conversation.messages.sorted(by: {
+                $0.createdAt!.timeIntervalSince1970 < $1.createdAt!.timeIntervalSince1970
+            }).map { $0.response }.last
+            
+            return ConversationWithKids(
+              id: conversation.id,
+              title: conversation.title,
+              type: conversation.type,
+              admins: adminsResponse,
+              members: membersResponse,
+              lastMessage: messageLastResponse,
+              createdAt: conversation.createdAt!,
+              updatedAt: conversation.updatedAt!
+            )
         }
-      }
-  }
+    }
   
-  private func find(_ req: Request) throws -> EventLoopFuture<Conversation> {
+  private func find(_ req: Request) async throws -> Conversation {
     if req.loggedIn == false { throw Abort(.unauthorized) }
     guard let _id = req.parameters.get("\(Conversation.schema)Id"), let id = ObjectId(_id) else {
-      return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)Id not found" ) )
+        throw Abort(.notFound, reason: "\(Conversation.schema)Id not found" )
     }
     
-    return Conversation.query(on: req.db)
+    return try await Conversation.query(on: req.db)
       .with(\.$admins).with(\.$members)
       .filter(\.$id == id)
       .first()
       .unwrap(or: Abort(.notFound, reason: "Conversation not found by id \(Conversation.schema)Id") )
+      .get()
     
   }
   
-  private func readAllMessageByCoversationID(_ req: Request) throws -> EventLoopFuture<Page<Message.Item>> {
+  private func readAllMessageByCoversationID(_ req: Request) async throws -> Page<Message.Item> {
     
     if req.loggedIn == false {
       throw Abort(.unauthorized)
     }
     
-    guard let _id = req.parameters.get("\(Conversation.schema)Id"), let id = ObjectId(_id) else {
-      return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "\(Conversation.schema)Id not found" ) )
+    guard
+        let _id = req.parameters.get("\(Conversation.schema)Id"),
+        let id = ObjectId(_id)
+    else {
+        throw Abort(.notFound, reason: "\(Conversation.schema)Id not found" )
     }
     
-    return Message.query(on: req.db)
+    return try await Message.query(on: req.db)
       .with(\.$sender)
       .with(\.$recipient)
       .filter(\.$conversation.$id == id)
@@ -130,6 +143,7 @@ final class ConversationController {
       .map { (originalMessage: Page<Message>) -> Page<Message.Item> in
         originalMessage.map { $0.response }
       }
+      .get()
   }
   
   func addUserToConversation(_ req: Request) throws -> EventLoopFuture<Conversation> {
@@ -165,37 +179,35 @@ final class ConversationController {
     
   }
   
-  private func update(_ req: Request) throws -> EventLoopFuture<Conversation> {
+  private func update(_ req: Request) async throws -> Conversation {
     if req.loggedIn == false {
       throw Abort(.unauthorized)
     }
     
-    let conversation = try req.content.decode(Conversation.self)
+    let conversationDecode = try req.content.decode(Conversation.self)
     
-    guard let id = conversation.id else {
-      return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "Conversation id missing"))
+    guard let id = conversationDecode.id else {
+       throw Abort(.notFound, reason: "Conversation id missing")
     }
     
-    if !conversation.admins.map({ $0.id }).contains(req.payload.userId) {
-      return req.eventLoop.makeFailedFuture(
-        Abort(.notFound,reason: "Dont have permission to change this Conversation")
-      )
+    if !conversationDecode.admins.map({ $0.id }).contains(req.payload.userId) {
+        throw Abort(.notFound,reason: "Dont have permission to change this Conversation")
     }
     
     // only owner can delete
-    return Conversation.query(on: req.db)
+    let conversation =  try await Conversation.query(on: req.db)
       .filter(\.$id == id)
       .first()
       .unwrap(or: Abort(.notFound, reason: "No Conversation. found! by id: \(id)"))
-      .flatMap { con in
-        conversation.id = con.id
-        conversation._$id.exists = true
-        return conversation.update(on: req.db).map { con }
-        
-      }
+      .get()
+      
+    conversation.id = conversation.id
+    conversation._$id.exists = true
+    try await conversation.update(on: req.db)
+    return conversation
   }
   
-  private func delete(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
+  private func delete(_ req: Request) async throws -> HTTPStatus {
     if req.loggedIn == false {
       throw Abort(.unauthorized)
     }
@@ -204,10 +216,10 @@ final class ConversationController {
       let _id = req.parameters.get("\(Conversation.schema)_id"),
       let id = ObjectId(_id)
     else {
-      return req.eventLoop.makeFailedFuture(Abort(.notFound))
+      throw Abort(.notFound, reason: "No Conversation. found! for delete by id")
     }
     
-    return Conversation.find(id, on: req.db)
+    return try await Conversation.find(id, on: req.db)
       .unwrap(or: Abort(.notFound, reason: "No Conversation. found! by id: \(id)"))
       .flatMapThrowing { conversation in
         if conversation.admins.map({ $0.id }).contains(req.payload.userId) != false {
@@ -215,7 +227,7 @@ final class ConversationController {
         } else {
            _ = conversation.delete(on: req.db)
         }
-      }.map { .ok }
+      }.map { .ok }.get()
     
   }
 }

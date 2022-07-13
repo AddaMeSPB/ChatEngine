@@ -10,7 +10,7 @@ import Fluent
 import MongoKitten
 import FluentMongoDriver
 import JWT
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 extension MessageController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
@@ -21,31 +21,27 @@ extension MessageController: RouteCollection {
 }
 
 final class MessageController {
-    private func readAllMessagesByConversationID(_ req: Request) throws -> EventLoopFuture<Page<Message.Item>> {
+    private func readAllMessagesByConversationID(_ req: Request) async throws -> Page<Message.Item> {
         
         if req.loggedIn == false {
             throw Abort(.unauthorized)
         }
         
         guard let _id = req.parameters.get("\(Conversation.schema)Id"),
-              let id = ObjectId(_id) else {
-            return req.eventLoop.makeFailedFuture(
-                Abort(.notFound, reason: "\(Conversation.schema)Id not found")
-            )
+              let id = ObjectId(_id)
+        else {
+            throw Abort(.notFound, reason: "\(Conversation.schema)Id not found")
         }
 
-        return Message.query(on: req.db)
+        let page = try await Message.query(on: req.db)
             .with(\.$sender)
             .with(\.$recipient)
             .filter(\.$conversation.$id == id)
             .sort(\.$createdAt, .descending)
             .paginate(for: req)
-            .map { (original: Page<Message>) -> Page<Message.Item> in
-                original.map {
-                  $0.response
-                  
-                }
-            }
+            .get()
+           
+            return page.map { $0.response }
         
         //        return Event.query(on: req.db)
         //            .sort(\.$createdAt, .descending)
@@ -56,40 +52,42 @@ final class MessageController {
         
     }
     
-    func update(_ req: Request) throws -> EventLoopFuture<Message.Item> {
+    func update(_ req: Request) async throws -> Message.Item {
         
         if req.loggedIn == false { throw Abort(.unauthorized) }
         let message = try req.content.decode(Message.self)
         
         guard let id = message.id else {
-            return req.eventLoop.makeFailedFuture(Abort(.notFound, reason: "Message id missing"))
+            throw Abort(.notFound, reason: "Message id missing \(message)")
         }
         
-        return Message.query(on: req.db)
+        let item = try await Message.query(on: req.db)
             .filter(\.$id == id)
             .first()
             .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
-            .flatMap { msg in
-                msg.id = message.id
-                msg._$id.exists = true
-                return msg.update(on: req.db).map { msg.response }
-            }
+            .get()
+        
+        item.id = message.id
+        item._$id.exists = true
+        try await item.update(on: req.db).get()
+        return item.response
     }
     
-    func delete(_ req: Request) throws -> EventLoopFuture<HTTPStatus> {
+    func delete(_ req: Request) async throws -> HTTPStatus {
         
         if req.loggedIn == false { throw Abort(.unauthorized) }
         
         guard let _id = req.parameters.get("\(Message.schema)_id"), let id = ObjectId(_id) else {
-            return req.eventLoop.makeFailedFuture(Abort(.notFound))
+            throw Abort(.notFound, reason: "message can't delete becz id: is missing")
         }
         
-        return Message.query(on: req.db)
+        return try await Message.query(on: req.db)
             .filter(\.$id == id)
             .first()
             .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
             .flatMap { $0.delete(on: req.db) }
             .map { .ok }
+            .get()
     }
 }
 

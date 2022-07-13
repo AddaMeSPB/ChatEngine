@@ -9,7 +9,7 @@ import Vapor
 import Fluent
 import MongoKitten
 import JWT
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 extension ChatController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {

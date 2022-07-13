@@ -8,7 +8,7 @@
 import Vapor
 import Fluent
 import MongoKitten
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 class WebSocketController {
     let lock: Lock

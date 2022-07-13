@@ -7,7 +7,7 @@
 
 import Vapor
 import MongoKitten
-import AddaAPIGatewayModels
+import AddaSharedModels
 
 final class WebsocketClients {
     
