@@ -3,6 +3,24 @@ import FluentMongoDriver
 import Vapor
 import APNS
 import JWTKit
+import VaporRouting
+import AddaSharedModels
+
+// Route
+enum SiteRouterKey: StorageKey {
+    typealias Value = AnyParserPrinter<URLRequestData, SiteRoute>
+}
+
+extension Application {
+    var router: SiteRouterKey.Value {
+        get {
+            self.storage[SiteRouterKey.self]!
+        }
+        set {
+            self.storage[SiteRouterKey.self] = newValue
+        }
+    }
+}
 
 // configures your application
 public func configure(_ app: Application) throws {
@@ -37,48 +55,19 @@ public func configure(_ app: Application) throws {
     break
   }
     
-    var connectionString: String
-    switch app.environment {
-    case .production:
-        guard let mongoURL = Environment.get("MONGO_DB_PRO") else {
-            fatalError("No MongoDB connection string is available in MONGO_DB_PRO")
-        }
-        connectionString = mongoURL
-    case .development:
-        guard let mongoURL = Environment.get("MONGO_DB_DEV") else {
-            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
-        }
-        connectionString = mongoURL
-        print("mongoURL: \(connectionString)")
-    case .staging:
-        guard let mongoURL = Environment.get("MONGO_DB_STAGING") else {
-            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
-        }
-        connectionString = mongoURL
-        print("mongoURL: \(connectionString)")
-    case .testing:
-        guard let mongoURL = Environment.get("MONGO_DB_TESTING") else {
-            fatalError("No MongoDB connection string is available in MONGO_DB_DEV")
-        }
-        connectionString = mongoURL
-        print("mongoURL: \(connectionString)")
-    default:
-        guard let mongoURL = Environment.get("MONGO_DB_DEV") else {
-            fatalError("No MongoDB connection string is available in MONGO_DB_DEV default \(#line)")
-        }
-        connectionString = mongoURL
-        print("mongoURL: \(connectionString)")
-    }
+    app.middleware.use(JWTMiddleware())
+    
+    var connectionString: String = ""
+    app.setupDatabaseConnections(&connectionString)
 
     try app.initializeMongoDB(connectionString: connectionString)
     try app.databases.use(.mongo(
         connectionString: connectionString
     ), as: .mongo)
-
-    guard let jwksString = Environment.process.JWKS else {
-        fatalError("No value was found at the given public key environment 'JWKS'")
-    }
-    try app.jwt.signers.use(jwksJSON: jwksString)
+    
+    // Add HMAC with SHA-256 signer.
+    let jwtSecret = Environment.get("JWT_SECRET") ?? String.random(length: 64)
+    app.jwt.signers.use(.hs256(key: jwtSecret))
 
     // Encoder & Decoder
     let encoder = JSONEncoder()
@@ -96,22 +85,36 @@ public func configure(_ app: Application) throws {
         app.http.server.configuration.port = 6060
     }
 
+    let host = "0.0.0.0"
+    var port = 6060
+    
     // Configure custom hostname.
     switch app.environment {
     case .production:
         app.http.server.configuration.hostname = "0.0.0.0"
         app.http.server.configuration.port = 6060
+        port = 6060
     case .staging:
       app.http.server.configuration.port = 6061
       app.http.server.configuration.hostname = "0.0.0.0"
+        port = 6061
     case .development:
         app.http.server.configuration.port = 6060
         app.http.server.configuration.hostname = "0.0.0.0"
+        port = 6060
     default:
         app.http.server.configuration.port = 6060
         app.http.server.configuration.hostname = "0.0.0.0"
+        port = 6060
     }
 
     try routes(app)
+    let baseURL = "http://\(host):\(port)"
+    
+    app.router = siteRouter
+        .baseURL(baseURL)
+        .eraseToAnyParserPrinter()
+    
+    app.mount(app.router, use: siteHandler)
 
 }

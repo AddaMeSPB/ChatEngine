@@ -7,32 +7,31 @@
 
 import Vapor
 import JWT
-import MongoKitten
+import BSON
 
-public final class JWTMiddleware: Middleware {
+public final class JWTMiddleware: AsyncMiddleware {
     public init() {}
 
-    public func respond(to request: Request, chainingTo next: Responder) -> EventLoopFuture<Response> {
-
-        guard let token = request.headers.bearerAuthorization?.token.utf8 else {
-            return request.eventLoop.makeFailedFuture(
-                Abort(.unauthorized, reason: "Missing authorization bearer header")
-            )
+    public func respond(to req: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        
+        guard let token = req.headers.bearerAuthorization?.token.utf8 else {
+            if [":3030/v1/auth/login",":3030/v1/auth/verify_sms", "/"].contains(req.url.string ) {
+                return try await next.respond(to: req)
+            }
+            return Response(status: .unauthorized, body: .init(string: "Missing authorization bearer header"))
         }
 
         do {
-            request.payload = try request.jwt.verify(Array(token), as: Payload.self)
+            req.payload = try req.jwt.verify(Array(token), as: Payload.self)
         } catch let JWTError.claimVerificationFailure(name: name, reason: reason) {
-            request.logger.error("JWT Verification Failure: \(name) \(reason)")
-            return request.eventLoop.makeFailedFuture(JWTError.claimVerificationFailure(name: name, reason: reason))
+            throw JWTError.claimVerificationFailure(name: name, reason: reason)
         } catch let error {
-            return request.eventLoop.makeFailedFuture(
-                Abort(.unauthorized, reason: "You are not authorized this token \(error)")
-            )
+            return Response(status: .unauthorized, body: .init(string: "You are not authorized this token \(error)"))
         }
 
-        return next.respond(to: request)
+        return try await next.respond(to: req)
     }
+
 }
 
 extension AnyHashable {

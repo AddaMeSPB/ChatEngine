@@ -4,13 +4,14 @@ import PackageDescription
 let package = Package(
     name: "ChatEngine",
     platforms: [
-       .macOS(.v10_15)
+       .macOS(.v12)
     ],
     dependencies: [
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.62.1"),
 //        .package(path: "../AddaSharedModels"),
-        .package(url: "https://github.com/AddaMeSPB/AddaSharedModels.git", from: "1.1.1"),
+//        .package(url: "https://github.com/AddaMeSPB/AddaSharedModels.git", from: "1.2.1"),
+        .package(url: "https://github.com/AddaMeSPB/AddaSharedModels.git", branch: "route"),
         .package(url: "https://github.com/vapor/jwt.git", from: "4.2.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "1.0.1")
     ],

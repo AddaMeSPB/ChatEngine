@@ -7,143 +7,169 @@
 
 @testable import App
 import XCTVapor
+import XCTest
+import VaporRouting
 import AddaSharedModels
 import FluentMongoDriver
 import Fluent
+import Foundation
 
-class ConversationTests: XCTestCase {
-    let user = User(phoneNumber: "+79218821217", firstName: "Alif")
-    let user1 = User(phoneNumber: "+79218821218", firstName: "Alla")
-    let user2 = User(phoneNumber: "+79218821219", firstName: "Masum")
-    let payload = Payload(id: ObjectId(), phoneNumber: "+79218821217")
-    let title = "Alla"
-    let conversationsURI = "/v1/conversations"
-    var app: Application!
+final class ConversationTests: AppTests {
+
+    var conversationCreate: ConversationCreate = .init(title: "Friday night with bicycle with 11 people", type: .oneToOne, opponentPhoneNumber: "+79218821211")
+    var conversastionId: String = "62fcd96687904794466e8469"
+    var opponentPhoneNumber = "+79218821211"
+    var adminMobileNumber = "+79218821211"
     
-    var opponentuser: User!, thrdUser: User!
-
-    override func setUp() {
-        app = try! Application.testable()
-        opponentuser = try? User.create(phoneNumber: "+79218821218", firstName: "Alla", database: app.db)
-        thrdUser = try? User.create(phoneNumber: "+79218821219", firstName: "Masum", database: app.db)
-    }
-
-    override func tearDown() {
-        app.shutdown()
-    }
-
-    func testConversationCanBeSavedWithAPI() throws {
-        let conversation = CreateConversation(title: "Alla", type: .oneToOne, opponentPhoneNumber: opponentuser.phoneNumber)
-        try app.customTest(.POST, conversationsURI, beforeRequest: { request in
-        _  = try request.content.encode(conversation)
-        }, afterResponse: { response in
-            let receivedConversation = try response.content.decode(ConversationResponse.Item.self)
-              XCTAssertEqual(receivedConversation.title, title)
-              XCTAssertNotNil(receivedConversation.id)
-
-            try app.customTest(.GET, "\(conversationsURI)/\(receivedConversation.id)", afterResponse: { response in
-                let conversationRes = try response.content.decode(ConversationResponse.Item.self)
-                XCTAssertEqual(conversationRes.title, title)
-                XCTAssertEqual(conversationRes.id, receivedConversation.id)
-            })
-        })
-        
-        sleep(3)
-        try app.customTest(.POST, conversationsURI, beforeRequest: { request in
-        _  = try request.content.encode(conversation)
-        }, afterResponse: { response in
-            let receivedConversation = try response.content.decode(ConversationResponse.Item.self)
-              XCTAssertEqual(receivedConversation.title, title)
-              XCTAssertNotNil(receivedConversation.id)
-
-            try app.customTest(.GET, "\(conversationsURI)/\(receivedConversation.id)", afterResponse: { response in
-                let conversationRes = try response.content.decode(ConversationResponse.Item.self)
-                XCTAssertEqual(conversationRes.title, title)
-                XCTAssertEqual(conversationRes.id, receivedConversation.id)
-            })
-        })
-        
-        sleep(3)
-        let conversation2 = CreateConversation(title: "Masum", type: .oneToOne, opponentPhoneNumber: thrdUser.phoneNumber)
-        try app.customTest(.POST, conversationsURI, beforeRequest: { request in
-        _  = try request.content.encode(conversation2)
-        }, afterResponse: { response in
-            let receivedConversation = try response.content.decode(ConversationResponse.Item.self)
-              XCTAssertEqual(receivedConversation.title, "Masum")
-              XCTAssertNotNil(receivedConversation.id)
-
-            try app.customTest(.GET, "\(conversationsURI)?page=1&par=30", afterResponse: { response in
-                let conversationRes = try response.content.decode(ConversationResponse.self)
-                XCTAssertEqual(conversationRes.items[0].title, "Masum")
-                XCTAssertEqual(conversationRes.items.count, 2)
-            })
-        })
-        
-        defer {
-            _ = opponentuser.delete(on: app.db)
-            _ = thrdUser.delete(on: app.db)
-        }
-    }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
-}
-
+//    override func setUp() {
+//        app = try! createTestApp()
+//        try! lgoin()
+//    }
 //
-//There are a number of ways to do it. The easiest it to probably create a custom signer for tests,
-//inject that in to your app in your test configuration and then create a JWT in your test
-//case you can send to authenticate the request
-
-
-//        "access": {
-//                "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdGF0dXMiOjAsImV4cCI6MTY2NTY1MDk4MCwiaWF0IjoxNjU3MDk3MzgwLCJ1c2VySWQiOiI1ZmFiYjFlYmFhNWY1Nzc0Y2NmZTQ4YzMiLCJwaG9uZU51bWJlciI6Iis3OTIxODgyMTIxNyJ9.sb4INDZSqtkU7CpXniE_pwVWsi4lRQZadUKBlRO6hk5LXM0paFpXZsw5QdgR9Chs05XSlwLzfC-TiFE3LEBX1VJP6X7GdPrRvMrHN26ejbceJbCTJlThfsVC0mBMEbwu583L5ZjKkXr2GA6BBGsfUC2xkskykZ9phG7kZ7-GtBwZMjsCh0dGGUGFAMKAjWqkfIiFUToHXfZmsG5mr1evBo02_ow2Pm_ymw_wUlKUC0bMzi-Ew9JV3uO00_f21TKhgFe-OyT6tetLiedafyOVNiZI5UyDRVgLHXW7YgppvYy6p663j6j14uTkcblL9cfnCCILg2tfITDRBoiv2k2X6w",
-//                "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjVmYWJiMWViYWE1ZjU3NzRjY2ZlNDhjMyIsImlhdCI6MTY1NzA5NzM4MCwiZXhwIjoxNjg4NjMzMzgwfQ.YsI99_MqDkJArP6iq-hN7zfLpLU82uoYkzSnc73EOq22m0PDMy872O8IuqxjdX12WWw0ImbBYzUZ_jbiTZwssmMC_0hzE3nvI5Hp3b9YbtPrjHEcfNQsDGdcCdb8u7vxe5RABu5-MumVC78cDjvMMqaB14uUNS7D_MMtEL69vpv5lbHZyjv3imGrSfF066n-l61QsIYsPH84pdRDAttM8YeeUTiMzwIeDFynAiEJJVcKjQ47vDKGWaG2HSp0UECagDyPNote4hGRRvWua6tGhDjxULupynKkrmfxRhoibVQcTgEA0-o3VSg3yWvjx0RhZWRgbDpQ2Cw7ota4iuxFeA"
-//            }
-
-public struct Metadata: Codable, Equatable {
-  public let per, total, page: Int
-
-  public init(per: Int, total: Int, page: Int) {
-    self.per = per
-    self.total = total
-    self.page = page
-  }
-}
-
-public struct ConversationResponse: Codable {
-  public let items: [Item]
-  public let metadata: Metadata
-
-  public init(items: [Item], metadata: Metadata) {
-    self.items = items
-    self.metadata = metadata
-  }
-
-  public struct Item: Codable {
-    public init(
-      id: String, title: String, type: ConversationType,
-      members: [User], admins: [User],
-      createdAt: Date, updatedAt: Date
-    ) {
-      self.id = id
-      self.title = title
-      self.type = type
-      self.members = members
-      self.admins = admins
-      self.createdAt = createdAt
-      self.updatedAt = updatedAt
+//    override func tearDown() {
+//        app.shutdown()
+//    }
+    
+    func testPostConversation() async throws {
+        app = try! createTestApp()
+        
+        _ = try await User.create(phoneNumber: opponentPhoneNumber, firstName: "opponentPhoneNumber", database: app.db)
+        
+        app.mount(siteRouter) { req, route in
+            switch route {
+            case .chatEngine(
+                .conversations(
+                    .create(input: .init(title: "Friday night with bicycle with 12 people", type: .group, opponentPhoneNumber: self.opponentPhoneNumber))
+                )
+            ):
+                return ConversationCreate(title: "Friday night with bicycle with 11 people", type: .group, opponentPhoneNumber: self.opponentPhoneNumber)
+            default:
+                return Response(status: .badRequest)
+            }
+        }
+        
+        try app.customTest(
+            .POST,
+            token: token,
+            path: "v1/conversations",
+            beforeRequest: { req in
+                try req.content.encode(ConversationCreate(title: "Friday night with bicycle with 12 people", type: .oneToOne, opponentPhoneNumber: opponentPhoneNumber))
+            }, afterResponse: { response in
+                XCTAssertEqual(response.status, .ok)
+                let conversation = try response.content.decode(Conversation.self)
+                self.conversastionId  = conversation.id!.hexString
+                XCTAssertNotNil(conversation.id)
+                XCTAssertEqual(conversation.title, "Friday night with bicycle with 12 people")
+            }
+        )
+        
+        _ = try await User.delete(phoneNumber: opponentPhoneNumber, database: app.db)
+    }
+    
+    func testFindConversation() throws {
+        app.mount(siteRouter) { req, route in
+            switch route {
+            case .chatEngine(
+                .conversations(
+                    .conversation(id: self.conversastionId, route: .find)
+                )
+            ):
+                
+                return "findConversation"
+            default:
+                return Response(status: .badRequest)
+            }
+        }
+        
+        try app.customTest(.GET,token: token, path: "v1/conversations/\(conversastionId)", afterResponse:  { response in
+            XCTAssertEqual(response.status, .ok)
+            let conversation = try response.content.decode(ConversationOutPut.self)
+            XCTAssertNotNil(conversation.id)
+            XCTAssertEqual(conversation.title, "VaporRouteing")
+        })
     }
 
-    public let id, title: String
-    public var type: ConversationType
-    public let members: [User]?
-    public let admins: [User]?
+    func testCreateConversationMessage() throws {
+        app.mount(siteRouter) { req, route in
+            switch route {
+            case .chatEngine(
+                .conversations(
+                    .conversation(
+                        id: self.conversastionId,
+                        route: .messages(
+                            .create(
+                                input: MessageItem(
+                                    conversationId: ObjectId(self.conversastionId)!,
+                                    messageBody: "Hello!",
+                                    messageType: .text
+                                )
+                            )
+                        )
+                    )
+                )
+            ):
+                
+                return MessageItem(
+                    conversationId: ObjectId(self.conversastionId)!,
+                    messageBody: "Hello!",
+                    messageType: .text
+                )
+            default:
+                return Response(status: .badRequest)
+            }
+        }
+        
+        try app.customTest(
+            .POST,
+            token: token,
+            path: "v1/conversations/\(conversastionId)/messages",
+            beforeRequest: { req in
+                try req.content.encode(MessageItem(
+                    conversationId: ObjectId(self.conversastionId)!,
+                    messageBody: "Hello!",
+                    messageType: .text
+                ))
+            }, afterResponse: { response in
+                XCTAssertEqual(response.status, .ok)
+                let message = try response.content.decode(MessageItem.self)
+                XCTAssertNotNil(message.id)
+                XCTAssertEqual(message.messageBody, "Hello!")
+            }
+        )
+    }
+    
+    func testListConversation() throws {
+        app = try! createTestApp()
+        
+        app.mount(siteRouter) { req, route in
+            switch route {
+            case .chatEngine(
+                .conversations(.list(query: .init()))
+            ): return "findConversation"
+            default:
+                return Response(status: .badRequest)
+            }
+        }
+        
+        try app.customTest(.GET, token: token, path: "v1/conversations", afterResponse:  { response in
+            XCTAssertEqual(response.status, .ok)
+            let conversations = try response.content.decode(ConversationsResponse.self)
+            XCTAssertNotNil(conversations.items.last?.title)
+        })
+    }
+    
+    func testDeleteConversation() throws  {
+        app.mount(siteRouter) { req, route in
+            switch route {
+            case .chatEngine(
+                .conversations(.delete(id: self.conversastionId))
+            ):
+                
+                return "findConversation"
+            default:
+                return Response(status: .badRequest)
+            }
+        }
+    }
 
-    public let createdAt, updatedAt: Date
-  }
 }

@@ -8,9 +8,20 @@ extension User {
         phoneNumber: String,
         firstName: String,
         database: Database
-    ) throws -> User {
+    ) async throws -> User {
         let user = User(phoneNumber: phoneNumber, firstName: firstName)
         try user.save(on: database).wait()
+        return user
+    }
+}
+
+extension User {
+    static func delete(
+        phoneNumber: String,
+        database: Database
+    ) throws -> User {
+        let user = User(phoneNumber: phoneNumber)
+        try user.delete(on: database).wait()
         return user
     }
 }
@@ -21,7 +32,7 @@ extension UserConversation {
         admin: User,
         conversation: Conversation,
         database: Database
-    ) throws -> UserConversation {
+    ) async throws -> UserConversation {
         let userConveration = try UserConversation(id: ObjectId(), member: member, admin: admin, conversation: conversation)
         try userConveration.save(on: database).wait()
         return userConveration
@@ -35,13 +46,28 @@ extension Conversation {
         member: User,
         admin: User,
         database: Database
-    ) throws -> Conversation {
+    ) async throws -> Conversation {
         
         let conversation = Conversation(title: title, type: type)
         try conversation.save(on: database).wait()
         
-        _ = try UserConversation.create(member: member, admin: admin, conversation: conversation, database: database)
+        _ = try await UserConversation.create(member: member, admin: admin, conversation: conversation, database: database)
         
         return conversation
     }
+}
+
+
+extension Message {
+    static func create(
+        msgItem: MessageItem,
+        senderId: ObjectId,
+        database: Database
+    ) async throws -> MessageItem {
+        
+        let message = Message(msgItem, senderId: senderId, receipientId: nil)
+        try message.save(on: database).wait()
+        return message.response
+    }
+    
 }

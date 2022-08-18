@@ -12,82 +12,114 @@ import FluentMongoDriver
 import JWT
 import AddaSharedModels
 
-extension MessageController: RouteCollection {
-    func boot(routes: RoutesBuilder) throws {
-        routes.get("by" ,"conversations" ,":conversationsId", use: readAllMessagesByConversationID)
-        routes.put(use: update)
-        routes.delete(":messagesId", use: delete)
-    }
-}
-
-final class MessageController {
-    private func readAllMessagesByConversationID(_ req: Request) async throws -> Page<Message.Item> {
+public func messageHandler(
+    request: Request,
+    messageId: String,
+    route: MessageRoute
+) async throws -> AsyncResponseEncodable {
+    switch route {
+    case .find:
+        if request.loggedIn == false { throw Abort(.unauthorized) }
         
-        if req.loggedIn == false {
-            throw Abort(.unauthorized)
-        }
-        
-        guard let _id = req.parameters.get("\(Conversation.schema)Id"),
-              let id = ObjectId(_id)
-        else {
+        guard let id = ObjectId(messageId) else {
             throw Abort(.notFound, reason: "\(Conversation.schema)Id not found")
         }
 
-        let page = try await Message.query(on: req.db)
-            .with(\.$sender)
-            .with(\.$recipient)
+        let message = try await Message.query(on: request.db)
+            .with(\.$sender) { $0.with(\.$attachments) }
+            .with(\.$recipient) { $0.with(\.$attachments) }
+            .filter(\.$id == id)
+            .first()
+            .unwrap(or: Abort(.notFound, reason: "Message not found by id \(messageId)"))
+            .get()
+        
+        return message.response
+    }
+}
+
+public func messagesHandler(
+    request: Request,
+    conversationId: String,
+    route: MessagesRoute
+) async throws -> AsyncResponseEncodable {
+    switch route {
+    case .create(input: let input):
+        if request.loggedIn == false { throw Abort(.unauthorized) }
+        let message = Message(input, senderId: request.payload.userId)
+        
+        try await message
+            .save(on: request.db)
+            .get()
+            
+        return message.response
+        
+    case .list:
+        if request.loggedIn == false { throw Abort(.unauthorized) }
+
+        guard let id = ObjectId(conversationId) else {
+            throw Abort(.notFound, reason: "\(Conversation.schema)Id not found")
+        }
+
+        let page = try await Message.query(on: request.db)
+            .with(\.$sender) {
+                $0.with(\.$attachments)
+            }
+            .with(\.$recipient) {
+                $0.with(\.$attachments)
+            }
             .filter(\.$conversation.$id == id)
             .sort(\.$createdAt, .descending)
-            .paginate(for: req)
+            .paginate(for: request)
             .get()
-           
+
             return page.map { $0.response }
+    case .find(id: let id, route: let messageRoute):
+        return try await messageHandler(
+            request: request,
+            messageId: id,
+            route: messageRoute
+        )
+    case .update(input: let input):
+        if request.loggedIn == false { throw Abort(.unauthorized) }
         
-        //        return Event.query(on: req.db)
-        //            .sort(\.$createdAt, .descending)
-        //            .paginate(for: req)
-        //            .map { (original: Page<Event>) -> Page<Event.Res> in
-        //                original.map { $0.response }
-        //            }
-        
-    }
-    
-    func update(_ req: Request) async throws -> Message.Item {
-        
-        if req.loggedIn == false { throw Abort(.unauthorized) }
-        let message = try req.content.decode(Message.self)
+        let message = input
         
         guard let id = message.id else {
             throw Abort(.notFound, reason: "Message id missing \(message)")
         }
         
-        let item = try await Message.query(on: req.db)
+        let item = try await Message.query(on: request.db)
             .filter(\.$id == id)
             .first()
             .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
             .get()
         
         item.id = message.id
+        //item.messageBody = message.messageBody
         item._$id.exists = true
-        try await item.update(on: req.db).get()
+        try await item.update(on: request.db).get()
         return item.response
-    }
-    
-    func delete(_ req: Request) async throws -> HTTPStatus {
+    case .delete(id: let messageId):
+        if request.loggedIn == false { throw Abort(.unauthorized) }
         
-        if req.loggedIn == false { throw Abort(.unauthorized) }
-        
-        guard let _id = req.parameters.get("\(Message.schema)_id"), let id = ObjectId(_id) else {
-            throw Abort(.notFound, reason: "message can't delete becz id: is missing")
+        guard let id = ObjectId(messageId) else {
+            throw Abort(.notFound, reason: "Message can't delete becz id: \(messageId) is missing")
         }
         
-        return try await Message.query(on: req.db)
-            .filter(\.$id == id)
-            .first()
+        let message = try await Message.find(id, on: request.db)
             .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))
-            .flatMap { $0.delete(on: req.db) }
-            .map { .ok }
             .get()
+        
+        guard let sender = message.sender else {
+            throw Abort(.notFound, reason: "Unable to find Message sender ")
+        }
+        
+        if request.payload.userId == sender.id {
+            try await message.delete(on: request.db)
+        } else {
+            throw Abort(.unauthorized)
+        }
+        
+        return HTTPStatus.ok
     }
 }
-

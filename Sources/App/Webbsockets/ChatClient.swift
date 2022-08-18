@@ -36,8 +36,8 @@ final class ChatClient: WebSocketClient, Hashable {
         }
 
         Message.query(on: req.db)
-            .with(\.$sender)
-            .with(\.$recipient)
+            .with(\.$sender) { $0.with(\.$attachments) }
+            .with(\.$recipient) { $0.with(\.$attachments) }
             .filter(\.$id == message.id!)
             .first()
             .unwrap(or: Abort(.notFound, reason: "No Message found! by id: \(id)"))

@@ -1,5 +1,8 @@
 import Fluent
 import Vapor
+import VaporRouting
+import AddaSharedModels
+import BSON
 
 func routes(_ app: Application) throws {
     app.get { req in
@@ -12,18 +15,24 @@ func routes(_ app: Application) throws {
 
     try app.group("v1") { api in
         
-        let messages = api.grouped("messages")
-        let messagesAuth = messages.grouped(JWTMiddleware())
-        try messagesAuth.register(collection: MessageController() )
-        
-        let conversations = api.grouped("conversations")
-        let conversationsAuth = conversations.grouped(JWTMiddleware())
-        try conversationsAuth.register(collection: ConversationController())
-        
         let chat = api.grouped("chat")
         let chatAuth = chat.grouped(JWTMiddleware())
         let webSocketController = WebSocketController(eventLoop: app.eventLoopGroup.next(), db: app.db)
         try chatAuth.register(collection: ChatController(wsController: webSocketController) )
        
+    }
+}
+
+public func siteHandler(
+    request: Request,
+    route: SiteRoute
+) async throws -> AsyncResponseEncodable {
+    switch route {
+    case .eventEngine:
+        return Response(status: .badRequest)
+    case let .chatEngine(chatEngineRoute):
+        return try await chatEngineHandler(request: request, route: chatEngineRoute)
+    case .authEngine:
+        return Response(status: .badRequest)
     }
 }

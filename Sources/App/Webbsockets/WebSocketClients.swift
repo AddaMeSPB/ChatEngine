@@ -51,14 +51,14 @@ final class WebsocketClients {
     return msg.$conversation.query(on: req.db)
       .with(\.$members) {
         $0.with(\.$devices) {
-          $0.with(\.$user)
+            $0.with(\.$user) { $0.with(\.$attachments) }
         }
       }
       .first()
       .unwrap(or: Abort(.noContent) )
       .map { conversation in
       conversation.members.forEach({ user in
-        for device in user.devices where device.user.id != req.payload.userId {
+          for device in user.devices where device.user?.id != req.payload.userId {
           req.apns.send(
             .init(title: conversation.title, subtitle: msg.messageBody),
             to: device.token
@@ -68,7 +68,7 @@ final class WebsocketClients {
     }
   }
   
-  func send(_ msg: Message.Item, req: Request) {
+  func send(_ msg: MessageItem, req: Request) {
         
         let messageCreate = Message(msg, senderId: req.payload.userId, receipientId: nil)
         
@@ -105,7 +105,7 @@ final class WebsocketClients {
     deinit {
         let futures = self.allCliendts.values.map { $0.socket.close() }
         try! self.eventLoop.flatten(futures).wait()
-      logger.debug("deinit call from WebsocketClients")
+        logger.debug("deinit call from WebsocketClients")
     }
     
 }
